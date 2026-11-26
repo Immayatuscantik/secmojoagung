@@ -26,6 +26,8 @@ use Illuminate\Support\Facades\Storage;
  *
  * Jalankan (MENGHAPUS SEMUA DATA LAMA):
  *   php artisan migrate:fresh --seeder=DataDummySeeder
+ * atau, untuk simulasi pada tanggal tertentu (misalnya hari seminar):
+ *   php artisan simulasi:siapkan 2026-12-01
  */
 class DataDummySeeder extends Seeder
 {
@@ -95,10 +97,31 @@ class DataDummySeeder extends Seeder
 
     public function run(): void
     {
+        // Tanggal simulasi (dari perintah simulasi:siapkan). Semua data dihitung seolah-olah "hari ini" = tanggal tersebut.
+        $simulasi = config('sec.simulasi', []);
+        if (! empty($simulasi['tanggal'])) {
+            Carbon::setTestNow(Carbon::parse($simulasi['tanggal'])->setTime(6, 0));
+        }
+
+        try {
+            $this->isiData($simulasi);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    private function isiData(array $simulasi): void
+    {
         mt_srand(2026); // hasil acak selalu sama setiap kali dijalankan
 
         // 1. Data dasar: bidang, tarif, akun owner/admin/mentor/wali contoh, dan job hari ini
         $this->call(DatabaseSeeder::class);
+
+        // Lokasi rumah murid Wali Contoh dapat dipindah ke lokasi seminar agar absensi langsung dapat dicoba
+        if (! empty($simulasi['lat']) && ! empty($simulasi['lng'])) {
+            Murid::whereIn('nama', ['Andi Pratama', 'Salsa Aulia'])
+                ->update(['latitude' => $simulasi['lat'], 'longitude' => $simulasi['lng']]);
+        }
 
         $this->hariIni = today();
         $this->bidang  = Bidang::all()->keyBy('nama_bidang')->all();
@@ -169,6 +192,18 @@ class DataDummySeeder extends Seeder
         // Andi (SD 5) – Mentor Contoh
         $k($andi, 'Mapel Umum', $m1, [2, 6], '16:00', '17:30', 10, 'cair');
         $k($andi, 'Mapel Umum', $m1, [2, 6], '16:00', '17:30', 5, 'cair');
+        // Kursus simulasi: 7 dari 8 pertemuan sudah diabsen, pertemuan terakhir jatuh pada hari ini (hari seminar).
+        // Saat demo: admin memindah jam pertemuan terakhir -> mentor absen -> wali verifikasi -> pengajuan -> pencairan honor.
+        $andi->kursus()->where('status', 'tersedia')->get()->each->delete(); // job Andi dari DatabaseSeeder diganti kursus ini
+        $terakhir = $this->hariIni->isSunday() ? $this->hariIni->copy()->addDay() : $this->hariIni->copy();
+        $hariSim  = [$terakhir->dayOfWeekIso, $terakhir->dayOfWeekIso > 3 ? $terakhir->dayOfWeekIso - 3 : $terakhir->dayOfWeekIso + 3];
+        sort($hariSim);
+        for ($awalSim = $terakhir->copy(), $n = 0; ; $awalSim->subDay()) {
+            if (in_array($awalSim->dayOfWeekIso, $hariSim) && ++$n === 8) {
+                break;
+            }
+        }
+        $k($andi, 'Mapel Umum', $m1, $hariSim, '16:00', '17:30', 0, null, mulaiPada: $awalSim);
         // Salsa (SMP 8) – Rina
         $k($salsa, 'Mapel Umum', $m3, [1, 3, 5], '18:30', '20:00', 8, 'cair');
         $k($salsa, 'Mapel Umum', $m3, [1, 3, 5], '18:30', '20:00', 4, 'belum_sesuai');
@@ -325,15 +360,16 @@ class DataDummySeeder extends Seeder
      * $pekanLalu: kursus dimulai pada pekan ke-n sebelum pekan ini (0 = pekan ini, -1 = pekan depan).
      * $lewati: nomor pertemuan yang sengaja tidak diabsen mentor.
      * $ubah: ['ganti' => [nomor pertemuan dipindah 1 hari], 'oleh' => 'admin' (langsung) atau 'mentor' (pengajuan disetujui admin)].
+     * $mulaiPada: tanggal mulai tertentu (menggantikan $pekanLalu).
      */
     private function kursus(Murid $murid, string $namaBidang, ?Mentor $mentor, array $hari, string $mulai, string $selesai,
                             int $pekanLalu, ?string $akhir, array $lewati = [], string $verifikator = 'wali', string $status = 'diambil',
-                            array $ubah = []): void
+                            array $ubah = [], ?Carbon $mulaiPada = null): void
     {
         $bidang  = $this->bidang[$namaBidang];
         $jumlah  = count($hari) * 4;
         $honor   = TarifHonor::hitung($bidang, $murid->tingkat(), $jumlah)['honor'];
-        $tglMulai = $this->minggu($pekanLalu);
+        $tglMulai = $mulaiPada?->copy() ?? $this->minggu($pekanLalu);
         $dibuat  = $tglMulai->copy()->subDays(mt_rand(3, 6))->setTime(mt_rand(7, 21), mt_rand(0, 59));
 
         $kursus = $murid->kursus()->create([
