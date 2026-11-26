@@ -7,7 +7,10 @@
         <h1>Data Murid dan Kursus</h1>
         <p class="sub">Murid didaftarkan oleh wali murid atau oleh admin. Kursus dari wali perlu dikonfirmasi sebelum tampil di Daftar Job mentor.</p>
     </div>
-    <a href="{{ route('owner.murid.create') }}" class="tombol utama">+ Tambah Murid</a>
+    <div class="kumpulan-tombol">
+        <button type="button" class="tombol" id="buka-cetak">Cetak Data</button>
+        <a href="{{ route('owner.murid.create') }}" class="tombol utama">+ Tambah Murid</a>
+    </div>
 </div>
 
 <section class="panel">
@@ -24,7 +27,7 @@
             @foreach ($daftarTingkat as $t)
                 <option value="{{ $t }}" @selected($tingkat === $t)>{{ $t }}</option>
             @endforeach
-        </select>        
+        </select>
         <select name="status">
             <option value="">Semua status kursus</option>
             <option value="menunggu" @selected($status === 'menunggu')>Menunggu konfirmasi</option>
@@ -73,4 +76,19 @@
         </tbody>
     </table>
 </section>
+
+{{-- Dialog filter cetak data murid --}}
+@include('partials.dialog-cetak-data', [
+    'judulCetak'     => 'Data Murid',
+    'ruteCetak'      => 'owner.murid.cetak',
+    'namaStatus'     => 'status_kursus',
+    'opsiStatus'     => ['menunggu' => 'Menunggu konfirmasi', 'tersedia' => 'Mencari mentor', 'berjalan' => 'Berjalan', 'selesai' => 'Selesai'],
+    'statusTerpilih' => match ($status) {
+        'menunggu' => ['menunggu'],
+        'tersedia' => ['tersedia'],
+        'diambil'  => ['berjalan', 'selesai'],
+        default    => ['menunggu', 'tersedia', 'berjalan', 'selesai'],
+    },
+    'labelTanpa'     => 'Sertakan murid yang belum mengambil kursus',
+])
 @endsection

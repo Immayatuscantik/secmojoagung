@@ -41,6 +41,7 @@ Route::middleware(['auth', 'peran:owner,admin'])->prefix('owner')->name('owner.'
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/absensi/{absensi}', [DashboardController::class, 'show'])->name('absensi.show');
 
+    Route::get('/mentor/cetak', [MentorController::class, 'cetak'])->name('mentor.cetak');   // Cetak data mentor
     Route::resource('mentor', MentorController::class);
 
     Route::get('/bidang', [BidangController::class, 'index'])->name('bidang.index');
@@ -53,6 +54,7 @@ Route::middleware(['auth', 'peran:owner,admin'])->prefix('owner')->name('owner.'
     Route::put('/tarif/{tarif}', [TarifHonorController::class, 'update'])->name('tarif.update');
     Route::delete('/tarif/{tarif}', [TarifHonorController::class, 'destroy'])->name('tarif.destroy');
 
+    Route::get('/murid/cetak', [MuridController::class, 'cetak'])->name('murid.cetak');      // Cetak data murid
     Route::resource('murid', MuridController::class);
     Route::get('/murid/{murid}/kursus/tambah', [KursusController::class, 'create'])->name('kursus.create');
     Route::post('/murid/{murid}/kursus', [KursusController::class, 'store'])->name('kursus.store');

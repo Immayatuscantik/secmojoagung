@@ -7,7 +7,10 @@
         <h1>Data Mentor</h1>
         <p class="sub">Akun dan profil lengkap mentor beserta bidang yang dikuasai.</p>
     </div>
-    <a href="{{ route('owner.mentor.create') }}" class="tombol utama">+ Tambah Mentor</a>
+    <div class="kumpulan-tombol">
+        <button type="button" class="tombol" id="buka-cetak">Cetak Data</button>
+        <a href="{{ route('owner.mentor.create') }}" class="tombol utama">+ Tambah Mentor</a>
+    </div>
 </div>
 
 <section class="panel">
@@ -36,7 +39,7 @@
 
     <table class="tabel">
         <thead>
-            <tr><th>Nama</th><th>Kontak</th><th>Kursus aktif</th><th>Aksi<th>Bidang dan tingkat dikuasai</th></th></tr>
+            <tr><th>Nama</th><th>Kontak</th><th>Bidang dan tingkat dikuasai</th><th>Kursus aktif</th><th>Aksi</th></tr>
         </thead>
         <tbody>
             @forelse ($mentor as $m)
@@ -65,4 +68,14 @@
         </tbody>
     </table>
 </section>
+
+{{-- Dialog filter cetak data mentor --}}
+@include('partials.dialog-cetak-data', [
+    'judulCetak'     => 'Data Mentor',
+    'ruteCetak'      => 'owner.mentor.cetak',
+    'namaStatus'     => 'status',
+    'opsiStatus'     => ['berjalan' => 'Kursus berjalan', 'selesai' => 'Kursus selesai'],
+    'statusTerpilih' => ['berjalan', 'selesai'],
+    'labelTanpa'     => 'Sertakan mentor yang belum memiliki murid',
+])
 @endsection

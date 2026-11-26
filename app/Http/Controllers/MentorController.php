@@ -19,6 +19,45 @@ class MentorController extends Controller
     // Daftar mentor dengan pencarian nama/email serta filter bidang dan tingkat
     public function index(Request $request)
     {
+        [$mentor, $cari, $bidang, $tingkat] = $this->cariMentor($request);
+
+        return view('owner.mentor.index', [
+            'mentor'       => $mentor,
+            'cari'         => $cari,
+            'bidang'       => $bidang,
+            'tingkat'      => $tingkat,
+            'daftarBidang' => Bidang::orderBy('nama_bidang')->get(),
+            'daftarTingkat' => KeahlianMentor::TINGKAT,
+        ]);
+    }
+
+    // Cetak data mentor: nama, alamat, kursus, dan murid yang diajar (mengikuti filter cetak)
+    public function cetak(Request $request)
+    {
+        [$mentor, , $bidang] = $this->cariMentor($request);
+        $status = array_values(array_intersect((array) $request->input('status'), ['berjalan', 'selesai'])) ?: ['berjalan', 'selesai'];
+
+        $mentor->load(['kursus' => fn ($q) => $q
+            ->where('status', 'diambil')
+            ->when($bidang, fn ($x) => $x->where('id_bidang', $bidang))
+            ->with(['murid', 'bidang'])
+            ->withCount(['jadwal as hadir_count' => fn ($j) => $j->where('jenis', 'rutin')->has('absensi')])]);
+
+        $baris = $mentor->map(fn ($m) => (object) [
+                'mentor' => $m,
+                'kursus' => $m->kursus
+                    ->filter(fn ($k) => in_array($k->pertemuanLengkap() ? 'selesai' : 'berjalan', $status))
+                    ->sortBy('murid.nama')->values(),
+            ])
+            ->filter(fn ($b) => $request->boolean('tanpa_kursus', true) || $b->kursus->isNotEmpty())
+            ->values();
+
+        return view('owner.mentor.cetak', ['baris' => $baris]);
+    }
+
+    // Query daftar mentor yang dipakai halaman Data Mentor dan cetak
+    private function cariMentor(Request $request): array
+    {
         $cari    = $request->cari;
         $bidang  = $request->integer('bidang') ?: null;
         $tingkat = in_array($request->tingkat, KeahlianMentor::TINGKAT) ? $request->tingkat : null;
@@ -33,16 +72,10 @@ class MentorController extends Controller
                 ->when($bidang, fn ($x) => $x->where('id_bidang', $bidang))
                 ->when($tingkat, fn ($x) => $x->where('tingkat', $tingkat))))
             ->get()
-            ->sortBy('user.nama');
+            ->sortBy('user.nama')
+            ->values();
 
-        return view('owner.mentor.index', [
-            'mentor'       => $mentor,
-            'cari'         => $cari,
-            'bidang'       => $bidang,
-            'tingkat'      => $tingkat,
-            'daftarBidang' => Bidang::orderBy('nama_bidang')->get(),
-            'daftarTingkat' => KeahlianMentor::TINGKAT,
-        ]);
+        return [$mentor, $cari, $bidang, $tingkat];
     }
 
     // Detail mentor dengan tab: Profil Pribadi, Bidang Dikuasai, Kursus yang Diajar

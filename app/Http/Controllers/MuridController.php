@@ -18,6 +18,51 @@ class MuridController extends Controller
     // Daftar murid (owner/admin) dengan pencarian nama serta filter bidang, tingkat, dan status kursus
     public function index(Request $request)
     {
+        [$murid, $cari, $bidang, $tingkat, $status] = $this->cariMurid($request);
+
+        return view('owner.murid.index', [
+            'murid'         => $murid,
+            'cari'          => $cari,
+            'bidang'        => $bidang,
+            'tingkat'       => $tingkat,
+            'status'        => $status,
+            'daftarBidang'  => Bidang::orderBy('nama_bidang')->get(),
+            'daftarTingkat' => KeahlianMentor::TINGKAT,
+        ]);
+    }
+
+    // Cetak data murid: nama, alamat, kursus yang diambil, dan mentor (mengikuti filter cetak)
+    public function cetak(Request $request)
+    {
+        $request->merge(['status' => null]);   // status kursus pada cetak dipilih lewat kotak centang
+        [$murid, , $bidang] = $this->cariMurid($request);
+        $pilihan = ['menunggu', 'tersedia', 'berjalan', 'selesai'];
+        $status  = array_values(array_intersect((array) $request->input('status_kursus'), $pilihan)) ?: $pilihan;
+
+        $murid->load(['kursus' => fn ($q) => $q
+            ->when($bidang, fn ($x) => $x->where('id_bidang', $bidang))
+            ->with(['bidang', 'mentor.user'])
+            ->withCount(['jadwal as hadir_count' => fn ($j) => $j->where('jenis', 'rutin')->has('absensi')])]);
+
+        $kunci = fn ($k) => match (true) {
+            $k->status !== 'diambil' => $k->status,
+            $k->pertemuanLengkap()   => 'selesai',
+            default                  => 'berjalan',
+        };
+
+        $baris = $murid->map(fn ($m) => (object) [
+                'murid'  => $m,
+                'kursus' => $m->kursus->filter(fn ($k) => in_array($kunci($k), $status))->sortBy('bidang.nama_bidang')->values(),
+            ])
+            ->filter(fn ($b) => $request->boolean('tanpa_kursus', true) || $b->kursus->isNotEmpty())
+            ->values();
+
+        return view('owner.murid.cetak', ['baris' => $baris]);
+    }
+
+    // Query daftar murid yang dipakai halaman Data Murid dan cetak
+    private function cariMurid(Request $request): array
+    {
         $cari    = $request->cari;
         $bidang  = $request->integer('bidang') ?: null;
         $tingkat = in_array($request->tingkat, KeahlianMentor::TINGKAT) ? $request->tingkat : null;
@@ -36,15 +81,7 @@ class MuridController extends Controller
             ->orderBy('nama')
             ->get();
 
-        return view('owner.murid.index', [
-            'murid'         => $murid,
-            'cari'          => $cari,
-            'bidang'        => $bidang,
-            'tingkat'       => $tingkat,
-            'status'        => $status,
-            'daftarBidang'  => Bidang::orderBy('nama_bidang')->get(),
-            'daftarTingkat' => KeahlianMentor::TINGKAT,
-        ]);
+        return [$murid, $cari, $bidang, $tingkat, $status];
     }
 
     // Form tambah murid oleh owner/admin (untuk wali yang meminta didaftarkan oleh admin)

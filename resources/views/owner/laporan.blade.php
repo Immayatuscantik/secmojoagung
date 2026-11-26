@@ -509,11 +509,14 @@
         </table>
     </section>
 </div>
+
+{{-- Versi cetak formal (kop surat + tabel) dan dialog pilihan bagian --}}
+@include('partials.laporan-cetak')
 @endsection
 
 @push('script')
 <script>
-    // Tab laporan (saat dicetak, semua tab ditampilkan)
+    // Tab laporan di layar (versi cetak memakai partials/laporan-cetak)
     const tombolTab = document.querySelectorAll('#tab-laporan a');
     function bukaTab(nama) {
         tombolTab.forEach(t => t.classList.toggle('aktif', t.dataset.tab === nama));
@@ -534,6 +537,6 @@
     pilihPeriode.addEventListener('change', aturIsian);
     aturIsian();
 
-    document.getElementById('tombol-cetak').addEventListener('click', () => window.print());
+    // Tombol Cetak membuka dialog pilihan bagian (lihat partials/laporan-cetak.blade.php)
 </script>
 @endpush
