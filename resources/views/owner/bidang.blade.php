@@ -7,10 +7,11 @@
     <p class="sub">Daftar bidang/kursus yang ditawarkan bimbel. Bidang dipakai saat mengisi profil mentor dan saat wali mendaftarkan kursus.</p>
 </div>
 
-<div class="dua-kolom-sama">
+<div class="dua-kolom-sama tata-bidang">
     {{-- Daftar bidang --}}
     <section class="panel">
-        <table class="tabel">
+        <div class="gulir-tabel">
+        <table class="tabel tabel-bidang">
             <thead>
                 <tr><th>Bidang</th><th>Tingkat</th><th>Mentor</th><th>Kursus</th><th>Aksi</th></tr>
             </thead>
@@ -28,7 +29,7 @@
                                     <span class="sub">Belum ada tarif</span>
                                 @endforelse
                             @endif
-                        </td>                        
+                        </td>
                         <td>{{ $b->mentor_count }}</td>
                         <td>{{ $b->kursus_count }}</td>
                         <td class="aksi">
@@ -45,6 +46,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </section>
 
     {{-- Form tambah / ubah --}}
@@ -77,3 +79,15 @@
     </section>
 </div>
 @endsection
+
+@push('head')
+<style>
+    /* Daftar bidang lebih lebar dari formulir agar kolom Aksi tidak keluar dari kotak */
+    @media (min-width: 1024px) { .dua-kolom-sama.tata-bidang { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); } }
+    .tabel-bidang td.aksi { width: 1%; }
+    .tabel-bidang td.aksi > * { display: flex; margin: 0 0 6px; }
+    .tabel-bidang td.aksi > *:last-child { margin-bottom: 0; }
+    .tabel-bidang td.aksi .tombol { width: 100%; justify-content: center; }
+    .tabel-bidang td.aksi form { width: 100%; }
+</style>
+@endpush
